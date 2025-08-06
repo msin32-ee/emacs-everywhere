@@ -58,7 +58,9 @@
    ((eq system-type 'gnu/linux)
     (cons
      (if (getenv "WAYLAND_DISPLAY") 'wayland 'x11)
-     (intern (or (getenv "XDG_CURRENT_DESKTOP") "unknown"))))
+     (intern (or (getenv "XDG_CURRENT_DESKTOP")
+		   (when (getenv "SWAYSOCK") '"SWAY")
+		   "unknown"))))
    (t '(unknown . nil)))
   "The detected display server.")
 
@@ -110,7 +112,7 @@ it worked can be a good idea."
     (`(windows . ,_) (list "powershell" "-NoProfile" "-command"
                            "& {Add-Type 'using System; using System.Runtime.InteropServices; public class Tricks { [DllImport(\"user32.dll\")] public static extern bool SetForegroundWindow(IntPtr hWnd); }'; [tricks]::SetForegroundWindow(%w) }"))
     (`(x11 . ,_) (list "xdotool" "windowactivate" "--sync" "%w"))
-    (`(wayland . sway) (list "swaymsg" "[con_id=%w]" "focus"))
+    (`(wayland . sway) (list "swaymsg" "[con_id=%w]" "focus")) ; No --sync
     (`(wayland . KDE) (list "kdotool" "windowactivate" "%w"))) ; No --sync
   "Command to refocus the active window when emacs-everywhere was triggered.
 This is given as a list in the form (CMD ARGS...).
