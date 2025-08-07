@@ -60,6 +60,7 @@
      (if (getenv "WAYLAND_DISPLAY") 'wayland 'x11)
      (intern (or (getenv "XDG_CURRENT_DESKTOP")
 		   (when (getenv "SWAYSOCK") '"sway")
+		   (when (getenv "NIRI_SOCKET") '"niri")
 		   "unknown"))))
    (t '(unknown . nil)))
   "The detected display server.")
@@ -112,8 +113,10 @@ it worked can be a good idea."
     (`(windows . ,_) (list "powershell" "-NoProfile" "-command"
                            "& {Add-Type 'using System; using System.Runtime.InteropServices; public class Tricks { [DllImport(\"user32.dll\")] public static extern bool SetForegroundWindow(IntPtr hWnd); }'; [tricks]::SetForegroundWindow(%w) }"))
     (`(x11 . ,_) (list "xdotool" "windowactivate" "--sync" "%w"))
-    (`(wayland . sway) (list "swaymsg" "[con_id=%w]" "focus")) ; No --sync
-    (`(wayland . KDE) (list "kdotool" "windowactivate" "%w"))) ; No --sync
+    ;; No --sync in wayland sessions yet
+    (`(wayland . sway) (list "swaymsg" "[con_id=%w]" "focus"))
+    (`(wayland . niri) (list "niri" "msg" "action" "focus-window" "--id" "%w"))
+    (`(wayland . KDE) (list "kdotool" "windowactivate" "%w")))
   "Command to refocus the active window when emacs-everywhere was triggered.
 This is given as a list in the form (CMD ARGS...).
 In the arguments, \"%w\" is treated as a placeholder for the window ID,
@@ -245,6 +248,7 @@ Make sure that it will be matched by `emacs-everywhere-file-patterns'."
     (`(windows . ,_) #'emacs-everywhere--app-info-windows)
     (`(x11 . ,_) #'emacs-everywhere--app-info-linux-x11)
     (`(wayland . sway) #'emacs-everywhere--app-info-linux-sway)
+    (`(wayland . niri) #'emacs-everywhere--app-info-linux-niri)
     (`(wayland . KDE) #'emacs-everywhere--app-info-linux-kde))
   "Function that asks the system for information on the current foreground app.
 On most systems, this should be set to a sensible default, but it
@@ -541,6 +545,21 @@ Please go to 'System Preferences > Security & Privacy > Privacy > Accessibility'
        :class app-name
        :title window-title
        :geometry window-geometry))))
+
+(defun emacs-everywhere--app-info-linux-niri ()
+  "Return information on the current active window, on a Linux Niri session."
+  (require 'json)
+  (let* ((json (json-read-from-string
+		(emacs-everywhere--call "niri" "msg" "-j" "focused-window"))) ;-j for json
+	 (window-id (cdr (assq 'id json)))
+	 (window-title (cdr (assq 'title json)))
+	 (app-name (cdr (assq 'app_id json)))
+	 (window-geometry nil)) ;no geometry in niri
+    (make-emacs-everywhere-app
+     :id window-id
+     :class app-name
+     :title window-title
+     :geometry window-geometry)))
 
 (defun emacs-everywhere--app-info-linux-x11 ()
   "Return information on the current active window, on a Linux X11 sessions."
