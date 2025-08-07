@@ -551,7 +551,7 @@ Please go to 'System Preferences > Security & Privacy > Privacy > Accessibility'
   (require 'json)
   (let* ((json (json-read-from-string
 		(emacs-everywhere--call "niri" "msg" "-j" "focused-window"))) ;-j for json
-	 (window-id (cdr (assq 'id json)))
+	 (window-id (number-to-string (cdr (assq 'id json))))
 	 (window-title (cdr (assq 'title json)))
 	 (app-name (cdr (assq 'app_id json)))
 	 (window-geometry nil)) ;no geometry in niri
